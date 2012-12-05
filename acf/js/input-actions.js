@@ -1771,6 +1771,42 @@ var acf = {
 	});
 	
 	
+	// gallery ajax
+	acf.gallery_update_tile = function(){
+	
+		// vars
+		var div = window.acf_edit_attachment,
+			attachment_id = div.attr('data-id');
+		
+		
+		// ajax find new list data
+		$.ajax({
+			url: ajaxurl,
+			data : {
+				'action' : 'acf_get_gallery_list_data',
+				'attachment_id' : attachment_id
+			},
+			cache: false,
+			dataType: "html",
+			success: function( html ) {
+		    	
+	
+				// validate
+				if(!html)
+				{
+					return false;
+				}
+				
+				
+				// update list-item html
+				div.find('.list-data').html( html ); 	
+	 	
+			}
+		});
+		
+	};
+	
+	
 	/*
 	*  Conditional Logic Calculate
 	*
