@@ -4,7 +4,7 @@
 *  Advanced Custom Fields Lite
 *
 *  @description: a lite version of the Advanced Custom Fields WordPress plugin.
-*  @Version: 3.5.4
+*  @Version: 3.5.5
 *  @Author: Elliot Condon
 *  @Author URI: http://www.elliotcondon.com/
 *  @License: GPL
@@ -45,7 +45,7 @@ class acf_lite
 	{
 		$this->path = dirname(__FILE__);
 		$this->dir = str_replace(ABSPATH, get_bloginfo('url') . '/', $this->path);
-		$this->version = '3.5.4';
+		$this->version = '3.5.5';
 		$this->cache = array(); // basic array cache to hold data throughout the page load
 		$this->defaults = array(
 			'options_page' => array(
@@ -69,10 +69,13 @@ class acf_lite
 		
 		// actions
 		add_action('init', array($this, 'init'));
-		
+		add_action('admin_head', array($this,'admin_head'));
 		add_action('acf_save_post', array($this, 'acf_save_post'), 10); // save post, called from many places (api, input, everything, options)
 		
-		add_filter('acf_load_field', array($this, 'acf_load_field_defaults'), 5);
+		
+		// filters
+		add_filter('acf_load_field', array($this, 'acf_load_field'), 5);
+		
 		
 		// ajax
 		add_action('wp_ajax_get_input_metabox_ids', array($this, 'get_input_metabox_ids'));
@@ -102,7 +105,35 @@ class acf_lite
 		
 		// setup fields
 		$this->setup_fields();
-
+		
+		
+		// register acf scripts
+		$scripts = array(
+			'acf-fields' => $this->dir . '/js/fields.js',
+			'acf-input-actions' => $this->dir . '/js/input-actions.js',
+			'acf-input-ajax' => $this->dir . '/js/input-ajax.js',
+			'acf-datepicker' => $this->dir . '/core/fields/date_picker/jquery.ui.datepicker.js',
+		);
+		
+		foreach( $scripts as $k => $v )
+		{
+			wp_register_script( $k, $v, array('jquery'), $this->version );
+		}
+		
+		
+		// register acf styles
+		$styles = array(
+			'acf' => $this->dir . '/css/acf.css',
+			'acf-fields' => $this->dir . '/css/fields.css',
+			'acf-global' => $this->dir . '/css/global.css',
+			'acf-input' => $this->dir . '/css/input.css',
+			'acf-datepicker' => $this->dir . '/core/fields/date_picker/style.date_picker.css',
+		);
+		
+		foreach( $styles as $k => $v )
+		{
+			wp_register_style( $k, $v, false, $this->version ); 
+		}
 	}
 	
 	
@@ -171,6 +202,7 @@ class acf_lite
 		
 		// include child fields
 		include_once('core/fields/acf_field.php');
+		include_once('core/fields/tab.php');
 		include_once('core/fields/text.php');
 		include_once('core/fields/textarea.php');
 		include_once('core/fields/wysiwyg.php');
@@ -190,6 +222,7 @@ class acf_lite
 		
 		// add child fields
 		$this->fields['none'] = new acf_Field($this); 
+		$this->fields['tab'] = new acf_Tab($this); 
 		$this->fields['text'] = new acf_Text($this); 
 		$this->fields['textarea'] = new acf_Textarea($this); 
 		$this->fields['wysiwyg'] = new acf_Wysiwyg($this); 
@@ -277,6 +310,29 @@ class acf_lite
 		// Third Party Compatibility
 		include_once('core/controllers/third_party.php');
 		$this->third_party = new acf_third_party($this);
+	}
+	
+	
+	/*--------------------------------------------------------------------------------------
+	*
+	*	admin_head
+	*
+	*	@author Elliot Condon
+	*	@since 1.0.0
+	* 
+	*-------------------------------------------------------------------------------------*/
+	
+	function admin_head()
+	{
+		// hide upgrade page from nav
+		echo '<style type="text/css"> 
+			#adminmenu #toplevel_page_edit-post_type-acf a[href="edit.php?post_type=acf&page=acf-upgrade"]{ display:none; }
+			#adminmenu #toplevel_page_edit-post_type-acf .wp-menu-image { background-position: 1px -33px; }
+			#adminmenu #toplevel_page_edit-post_type-acf:hover .wp-menu-image,
+			#adminmenu #toplevel_page_edit-post_type-acf.wp-menu-open .wp-menu-image { background-position: 1px -1px; }
+			#adminmenu #toplevel_page_edit-post_type-acf .wp-menu-image img { display:none; }
+			
+		</style>';
 	}
 	
 
@@ -394,14 +450,14 @@ class acf_lite
 	
 	
 	/*
-	*  acf_load_field_defaults
+	*  acf_load_field
 	*
 	*  @description: 
 	*  @since 3.5.1
 	*  @created: 14/10/12
 	*/
 	
-	function acf_load_field_defaults( $field )
+	function acf_load_field( $field )
 	{
 		if( !is_array($field) )
 		{
@@ -413,19 +469,58 @@ class acf_lite
 			'label' => '',
 			'name' => '',
 			'type' => 'text',
-			'order_no' =>	'1',
+			'order_no' =>	1,
 			'instructions' =>	'',
-			'required' => '0',
+			'required' => 0,
 			'conditional_logic' => array(
-				'status' => '0',
+				'status' => 0,
 				'allorany' => 'all',
-				'rules' => false
+				'rules' => 0
 			),
 		);
 		
 		$field = array_merge($defaults, $field);
 		
+		
+		// Parse Values
+		$field = apply_filters( 'acf_parse_value', $field );
+		
+		
 		return $field;
+	}
+	
+	
+	/*
+	*  acf_parse_value
+	*
+	*  @description: 
+	*  @since: 2.0.4
+	*  @created: 9/12/12
+	*/
+	
+	function acf_parse_value( $value )
+	{
+		
+		// is value another array?
+		if( is_array($value) )
+		{
+			foreach( $value as $k => $v )
+			{
+				$value[ $k ] = apply_filters( 'acf_parse_value', $v );
+			}	
+		}
+		else
+		{
+			// numbers
+			if( is_numeric($value) )
+			{
+				$value = (int) $value;
+			}
+		}
+		
+		
+		// return
+		return $value;
 	}
 	
 	
@@ -449,24 +544,22 @@ class acf_lite
 		
 		
 		// defaults - class
-		if( !isset($field['class']) )
+		if( ! isset($field['class']) )
 		{
 			$field['class'] = $field['type'];
 		}
 		
 		
 		// defaults - id
-		// - isset is needed for the edit field group page where fields are created without many parameters
-		if( !isset($field['id']) )
+		if( ! isset($field['id']) )
 		{
-			if( isset($field['key']) )
-			{
-				$field['id'] = 'acf-' . $field['key'];
-			}
-			else
-			{
-				$field['id'] = 'acf-' . $field['name'];
-			}
+			$id = $field['name'];
+			$id = str_replace('][', '_', $id);
+			$id = str_replace('fields[', '', $id);
+			$id = str_replace(']', '', $id);
+			
+			
+			$field['id'] = 'acf-' . $id;
 		}
 		
 		
@@ -475,7 +568,7 @@ class acf_lite
 
 		// conditional logic
 		// - isset is needed for the edit field group page where fields are created without many parameters
-		if( isset($field['conditional_logic']) && $field['conditional_logic']['status'] == '1' ):
+		if( isset($field['conditional_logic']['status']) && $field['conditional_logic']['status'] ):
 		
 			$join = ' && ';
 			if( $field['conditional_logic']['allorany'] == "any" )
@@ -528,7 +621,6 @@ class acf_lite
 			<?php
 		endif;
 	}
-	
 	
 	
 	/*--------------------------------------------------------------------------------------
@@ -651,18 +743,22 @@ class acf_lite
 				
 				
 				// set value
-				$field['value'] = $this->get_value($post_id, $field);
+				if( ! isset($field['value']) )
+				{	
+					$field['value'] = $this->get_value($post_id, $field);
+				}
+				
 				
 				$required_class = "";
 				$required_label = "";
 				
-				if($field['required'] == "1")
+				if( $field['required'] )
 				{
 					$required_class = ' required';
 					$required_label = ' <span class="required">*</span>';
 				}
 				
-				echo '<div id="acf-' . $field['name'] . '" class="field field-' . $field['type'] . ' field-'.$field['key'] . $required_class . '">';
+				echo '<div id="acf-' . $field['name'] . '" class="field field-' . $field['type'] . ' field-' . $field['key'] . $required_class . '" data-field_name="' . $field['name'] . '" data-field_key="' . $field['key'] . '">';
 
 					echo '<p class="label">';
 						echo '<label for="fields[' . $field['key'] . ']">' . $field['label'] . $required_label . '</label>';
@@ -720,6 +816,10 @@ class acf_lite
 			}
 
 		}
+		
+		
+		// Parse values
+		$overrides = apply_filters( 'acf_parse_value', $overrides );
 		
 
 		// WPML
@@ -1214,7 +1314,7 @@ class acf_lite
 		        
 		       	
 		       	$post_format = isset($overrides['post_format']) ? $overrides['post_format'] : get_post_format( $post->ID );
-		        if($post_format == "0") $post_format = "standard";
+		        if($post_format == 0) $post_format = "standard";
 		        
 		        if($rule['operator'] == "==")
 		        {
@@ -1434,7 +1534,6 @@ class acf_lite
 	
 	function get_license_key($field_name)
 	{
-		
 		$value = '';
 		
 		if( isset( $this->defaults['activation_codes'][ $field_name ] ) )
@@ -1603,6 +1702,73 @@ class acf_lite
 		
 		return true;
 	}
+	
+	
+	
+	/*
+	*  get_post_language
+	*
+	*  @description: finds the translation code for a post
+	*  @since 3.3.9
+	*  @created: 17/08/12
+	*/
+	
+	/*function get_post_language( $post )
+	{
+		// global
+		global $wpdb;
+
+
+		// vars
+		$table = $wpdb->prefix.'icl_translations';
+		$element_type = 'post_' . $post->post_type;
+		$element_id = $post->ID;
+		
+		$lang = $wpdb->get_var("SELECT language_code FROM $table WHERE element_type = '$element_type' AND element_id = '$element_id'");
+		
+		return ' (' . $lang . ')';
+	}*/
+	
+	
+	/*
+	*  get_post_types
+	*
+	*  @description: 
+	*  @since: 3.5.5
+	*  @created: 16/12/12
+	*/
+	
+	function get_post_types( $exclude = array(), $include = array() )
+	{
+		// get all custom post types
+		$post_types = get_post_types();
+		
+		
+		// core include / exclude
+		$acf_includes = array_merge( array(), $include );
+		$acf_excludes = array_merge( array( 'acf', 'revision', 'nav_menu_item' ), $exclude );
+	 
+		
+		// include
+		foreach( $acf_includes as $p )
+		{					
+			if( post_type_exists($p) )
+			{							
+				$post_types[ $p ] = $p;
+			}
+		}
+		
+		
+		// exclude
+		foreach( $acf_excludes as $p )
+		{
+			unset( $post_types[ $p ] );
+		}
+	 
+		return $post_types;
+		
+	}
+	
 	
 }
 ?>

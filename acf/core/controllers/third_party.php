@@ -33,7 +33,41 @@ class acf_third_party
 		// Tabify Edit Screen - http://wordpress.org/extend/plugins/tabify-edit-screen/
 		add_action('admin_head-settings_page_tabify-edit-screen', array($this,'admin_head_tabify'));
 		
-			
+		
+		// Duplicate Post - http://wordpress.org/extend/plugins/duplicate-post/
+		add_action( 'dp_duplicate_page', array($this, 'dp_duplicate_page'), 11, 2);
+		
+		
+		// Post Type Switcher - http://wordpress.org/extend/plugins/post-type-switcher/
+		add_filter('pts_post_type_filter', array($this, 'pts_post_type_filter'));
+	}
+	
+	
+	/*
+	*  pts_allowed_pages
+	*
+	*  @description: 
+	*  @since 3.5.3
+	*  @created: 19/11/12
+	*/
+	
+	function pts_post_type_filter( $args )
+	{
+		
+		// global
+		global $typenow;
+		
+		if( $typenow == "acf" )
+		{
+			$args = array(
+				'public'  => false,
+				'show_ui' => true
+			);
+		}
+		
+		
+		// return
+		return $args;
 	}
 	
 	
@@ -110,6 +144,90 @@ class acf_third_party
 	function dummy(){ /* Do Nothing */ }
 	
 	
+	
+	/*
+	*  dp_duplicate_page
+	*
+	*  @description: 
+	*  @since 3.5.1
+	*  @created: 9/10/12
+	*/
+	
+	function dp_duplicate_page( $new_post_id, $old_post_object )
+	{
+		// only for acf
+		if( $old_post_object->post_type != "acf" )
+		{
+			return;
+		}
+		
+		
+		// update keys
+		$metas = get_post_custom( $new_post_id );
+		
+		if( $metas )
+		{
+			foreach( $metas as $field_key => $field )
+			{
+				if( strpos($field_key, 'field_') !== false )
+				{
+					$field = maybe_unserialize($field[0]);
+					
+					// delete old field
+					delete_post_meta($new_post_id, $field_key);
+
+					
+					// set new keys (recursive for sub fields)
+					$field = $this->create_new_field_keys( $field );
+					
+
+					// save it!
+					update_post_meta($new_post_id, $field['key'], $field);
+					
+				}
+				// if( strpos($field_key, 'field_') !== false )
+			}
+			// foreach( $metas as $field_key => $field )
+		}
+		// if( $metas )
+	
+	}
+	
+	
+	/*
+	*  create_new_field_keys
+	*
+	*  @description: 
+	*  @since 3.5.1
+	*  @created: 9/10/12
+	*/
+	
+	function create_new_field_keys( $field )
+	{
+		// get next id
+		$next_id = (int) get_option('acf_next_field_id', 1);
+		
+		
+		// update the acf_next_field_id
+		update_option('acf_next_field_id', ($next_id + 1) );
+		
+		
+		// update key
+		$field['key'] = 'field_' . $next_id;
+		
+		
+		// update sub field's keys
+		if( isset( $field['sub_fields'] ) )
+		{
+			foreach( $field['sub_fields'] as $k => $v )
+			{
+				$field['sub_fields'][ $k ] = $this->create_new_field_keys( $v );
+			}
+		}
+		
+		
+		return $field;
+	}
 
 }
 

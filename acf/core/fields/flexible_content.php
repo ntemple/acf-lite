@@ -58,7 +58,7 @@ class acf_Flexible_content extends acf_Field
 			
 				<div class="layout" data-layout="<?php echo $layout['name']; ?>">
 					
-					<input type="hidden" name="<?php echo $field['name']; ?>[999][acf_fc_layout]" value="<?php echo $layout['name']; ?>" />
+					<input type="hidden" name="<?php echo $field['name']; ?>[acfcloneindex][acf_fc_layout]" value="<?php echo $layout['name']; ?>" />
 					
 					<a class="ir fc-delete-layout" href="#"></a>
 					<p class="menu-item-handle"><span class="fc-layout-order"><?php echo $i+1; ?></span>. <?php echo $layout['label']; ?></p>
@@ -127,7 +127,7 @@ class acf_Flexible_content extends acf_Field
 									$sub_field['value'] = isset($sub_field['default_value']) ? $sub_field['default_value'] : false;
 									
 									// add name
-									$sub_field['name'] = $field['name'] . '[999][' . $sub_field['key'] . ']';
+									$sub_field['name'] = $field['name'] . '[acfcloneindex][' . $sub_field['key'] . ']';
 									
 									// create field
 									$this->parent->create_field($sub_field);
@@ -360,7 +360,7 @@ class acf_Flexible_content extends acf_Field
 				$fields_names[$f->name] = $f->title;
 			}
 		}
-		unset($fields_names['flexible_content']);
+		unset( $fields_names['flexible_content'], $fields_names['tab'] );
 		
 		
 		// loop through layouts and create the options for them
@@ -372,7 +372,7 @@ class acf_Flexible_content extends acf_Field
 				'label' => __("New Field",'acf'),
 				'name' => __("new_field",'acf'),
 				'type' => 'text',
-				'order_no' =>	'1',
+				'order_no' =>	1,
 				'instructions' =>	'',
 			);
 			
@@ -382,8 +382,12 @@ class acf_Flexible_content extends acf_Field
 		<label><?php _e("Layout",'acf'); ?></label>
 		<p class="desription">
 			<span><a class="acf_fc_reorder" title="<?php _e("Reorder Layout",'acf'); ?>" href="javascript:;"><?php _e("Reorder",'acf'); ?></a> | </span>
-			<span><a class="acf_fc_add" title="<?php _e("Add New Layout",'acf'); ?>" href="javascript:;"><?php _e("Add New",'acf'); ?></a> | </span>
 			<span><a class="acf_fc_delete" title="<?php _e("Delete Layout",'acf'); ?>" href="javascript:;"><?php _e("Delete",'acf'); ?></a>
+			
+			<br />
+			
+			<span><a class="acf_fc_add" title="<?php _e("Add New Layout",'acf'); ?>" href="javascript:;"><?php _e("Add New",'acf'); ?></a> | </span>
+			<span><a class="acf_fc_duplicate" title="<?php _e("Duplicate Layout",'acf'); ?>" href="javascript:;"><?php _e("Duplicate",'acf'); ?></a></span>
 		</p>
 	</td>
 	<td>
@@ -450,11 +454,6 @@ class acf_Flexible_content extends acf_Field
 	
 			<?php foreach($layout['sub_fields'] as $sub_field): ?>
 				<div class="field field-<?php echo $sub_field['key']; ?> sub_field" data-id="<?php echo $sub_field['key']; ?>">
-					<div style="display:none;">
-						<?php if( $sub_field['key'] == 'field_clone' ): ?>
-						<input type="hidden" name="fields[<?php echo $key; ?>][layouts][<?php echo $layout_key; ?>][sub_fields][<?php echo $sub_field['key']; ?>][new]" value="true" />
-						<?php endif; ?>
-					</div>
 					<div class="field_meta">
 					<table class="acf widefat">
 						<tr>
@@ -642,7 +641,7 @@ class acf_Flexible_content extends acf_Field
 		if($value)
 		{
 			// remove dummy field
-			unset($value[999]);
+			unset($value['acfcloneindex']);
 			
 			$i = -1;
 			

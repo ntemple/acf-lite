@@ -484,7 +484,6 @@ function acf_settings_options_pages( $options )
 add_filter('acf_settings', 'acf_settings_options_pages');
 
 
-
 /*--------------------------------------------------------------------------------------
 *
 *	get_row_layout

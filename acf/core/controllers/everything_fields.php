@@ -1,15 +1,5 @@
 <?php 
 
-/*--------------------------------------------------------------------------
-*
-*	Everything_fields
-*
-*	@author Elliot Condon
-*	@since 3.1.8
-* 
-*-------------------------------------------------------------------------*/
- 
- 
 class acf_everything_fields 
 {
 
@@ -220,7 +210,6 @@ class acf_everything_fields
 		
 		// Add admin head
 		add_action('admin_head', array($this,'admin_head'));
-		//add_action('admin_footer-'.$pagenow, array($this,'admin_footer'));
 		
 		
 	}
@@ -238,16 +227,6 @@ class acf_everything_fields
 	function admin_head()
 	{	
 		global $pagenow;
-		
-		
-		// Style
-		echo '<link rel="stylesheet" type="text/css" href="'.$this->parent->dir.'/css/global.css?ver=' . $this->parent->version . '" />';
-		echo '<link rel="stylesheet" type="text/css" href="'.$this->parent->dir.'/css/input.css?ver=' . $this->parent->version . '" />';
-		
-		
-		// Javascript
-		echo '<script type="text/javascript" src="'.$this->parent->dir.'/js/input-actions.js?ver=' . $this->parent->version . '" ></script>';
-		echo '<script type="text/javascript">acf.post_id = 0;</script>';
 		
 		
 		// add user js + css
@@ -509,13 +488,13 @@ class acf_everything_fields
 					// required
 					if(!isset($field['required']))
 					{
-						$field['required'] = "0";
+						$field['required'] = 0;
 					}
 					
 					$required_class = "";
 					$required_label = "";
 					
-					if($field['required'] == "1")
+					if( $field['required'] )
 					{
 						$required_class = ' required';
 						$required_label = ' <span class="required">*</span>';
