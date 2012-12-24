@@ -4,7 +4,7 @@
 *  Advanced Custom Fields Lite
 *
 *  @description: a lite version of the Advanced Custom Fields WordPress plugin.
-*  @Version: 3.5.5
+*  @Version: 3.5.6.2
 *  @Author: Elliot Condon
 *  @Author URI: http://www.elliotcondon.com/
 *  @License: GPL
@@ -75,6 +75,7 @@ class acf_lite
 		
 		// filters
 		add_filter('acf_load_field', array($this, 'acf_load_field'), 5);
+		add_filter('acf_parse_value', array($this, 'acf_parse_value'));
 		
 		
 		// ajax
@@ -134,6 +135,8 @@ class acf_lite
 		{
 			wp_register_style( $k, $v, false, $this->version ); 
 		}
+		
+		
 	}
 	
 	
@@ -330,8 +333,6 @@ class acf_lite
 			#adminmenu #toplevel_page_edit-post_type-acf .wp-menu-image { background-position: 1px -33px; }
 			#adminmenu #toplevel_page_edit-post_type-acf:hover .wp-menu-image,
 			#adminmenu #toplevel_page_edit-post_type-acf.wp-menu-open .wp-menu-image { background-position: 1px -1px; }
-			#adminmenu #toplevel_page_edit-post_type-acf .wp-menu-image img { display:none; }
-			
 		</style>';
 	}
 	
@@ -556,6 +557,7 @@ class acf_lite
 			$id = $field['name'];
 			$id = str_replace('][', '_', $id);
 			$id = str_replace('fields[', '', $id);
+			$id = str_replace('[', '-', $id); // location rules (select) does'nt have "fields[" in it
 			$id = str_replace(']', '', $id);
 			
 			
@@ -595,11 +597,11 @@ class acf_lite
 ?>
 		if(<?php echo implode( $join, $if ); ?>)
 		{
-			field.show();
+			field.removeClass('acf-conditional_logic-hide').addClass('acf-conditional_logic-show');
 		}
 		else
 		{
-			field.hide();
+			field.removeClass('acf-conditional_logic-show').addClass('acf-conditional_logic-hide');
 		}
 		
 	});
@@ -690,6 +692,26 @@ class acf_lite
 		}
 	}
 	
+	
+	/*--------------------------------------------------------------------------------------
+	*
+	*	update_field
+	*
+	*	@author Elliot Condon
+	*	@since 3.0.0
+	* 
+	*-------------------------------------------------------------------------------------*/
+	
+	function update_field($post_id, $field)
+	{
+		// apply filters
+		$field = apply_filters('acf_save_field', $field );
+		$field = apply_filters('acf_save_field-' . $field['type'], $field );
+		
+		
+		// save
+		update_post_meta($post_id, $field['key'], $field);
+	}
 	
 	
 	/*--------------------------------------------------------------------------------------
@@ -1312,10 +1334,15 @@ class acf_lite
 		    // Post Format
 		    case "post_format":
 		        
-		       	
+
 		       	$post_format = isset($overrides['post_format']) ? $overrides['post_format'] : get_post_format( $post->ID );
-		        if($post_format == 0) $post_format = "standard";
-		        
+		       
+		        if( is_numeric($post_format) && $post_format == 0 )
+		        {
+		        	$post_format = "standard";
+		        }
+		       
+		       	
 		        if($rule['operator'] == "==")
 		        {
 		        	if($post_format == $rule['value'])
