@@ -4,7 +4,7 @@
 *  Advanced Custom Fields Lite
 *
 *  @description: a lite version of the Advanced Custom Fields WordPress plugin.
-*  @Version: 3.5.6.2
+*  @Version: 3.5.7.2
 *  @Author: Elliot Condon
 *  @Author URI: http://www.elliotcondon.com/
 *  @License: GPL
@@ -47,7 +47,7 @@ class acf_lite
 		// vars
 		$this->path = dirname(__FILE__);
 		$this->dir = str_replace(ABSPATH, get_bloginfo('url') . '/', $this->path);
-		$this->version = '3.5.7';
+		$this->version = '3.5.7.2';
 		$this->cache = array(); // basic array cache to hold data throughout the page load
 		$this->defaults = array(
 			'options_page' => array(
