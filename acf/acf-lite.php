@@ -4,7 +4,7 @@
 *  Advanced Custom Fields Lite
 *
 *  @description: a lite version of the Advanced Custom Fields WordPress plugin.
-*  @Version: 3.5.7.2
+*  @Version: 3.5.8.1
 *  @Author: Elliot Condon
 *  @Author URI: http://www.elliotcondon.com/
 *  @License: GPL
@@ -47,7 +47,8 @@ class acf_lite
 		// vars
 		$this->path = dirname(__FILE__);
 		$this->dir = str_replace(ABSPATH, get_bloginfo('url') . '/', $this->path);
-		$this->version = '3.5.7.2';
+		$this->dir = apply_filters('acf_folder_dir', $this->dir);
+		$this->version = '3.5.8.1';
 		$this->cache = array(); // basic array cache to hold data throughout the page load
 		$this->defaults = array(
 			'options_page' => array(
@@ -62,7 +63,11 @@ class acf_lite
 				'gallery'			=> '', // activation code for the gallery add-on (XXXX-XXXX-XXXX-XXXX)
 			),
 		);
-			
+		
+		
+		// set text domain
+		load_plugin_textdomain('acf', false, basename(dirname(__FILE__)).'/lang' );
+		
 		
 		// controllers
 		$this->setup_controllers();
@@ -74,8 +79,14 @@ class acf_lite
 		add_action('acf_save_post', array($this, 'acf_save_post'), 10); // save post, called from many places (api, input, everything, options)
 		
 		
+		// action functions
+		add_action('acf/create_field', array($this, 'create_field'), 1, 1);
+		add_filter('acf/get_field_groups', array($this, 'get_field_groups'), 1, 1);
+		//add_filter('acf/get_field', array($this, 'get_field'), 10, 1);
+		
+		
 		// filters
-		add_filter('acf_load_field', array($this, 'acf_load_field'), 5);
+		add_filter('acf_load_field', array($this, 'acf_load_field'), 1, 1);
 		add_filter('acf_parse_value', array($this, 'acf_parse_value'));
 		
 		
@@ -107,9 +118,9 @@ class acf_lite
 		
 		// register acf scripts
 		$scripts = array(
-			'acf-fields' => $this->dir . '/js/fields.js',
-			'acf-input-actions' => $this->dir . '/js/input-actions.js',
-			'acf-input-ajax' => $this->dir . '/js/input-ajax.js',
+			'acf-field-group' => $this->dir . '/js/field-group.js',
+			'acf-input' => $this->dir . '/js/input.php',
+			'acf-input-ajax' => $this->dir . '/js/input/ajax.js',
 			'acf-datepicker' => $this->dir . '/core/fields/date_picker/jquery.ui.datepicker.js',
 		);
 		
@@ -122,7 +133,7 @@ class acf_lite
 		// register acf styles
 		$styles = array(
 			'acf' => $this->dir . '/css/acf.css',
-			'acf-fields' => $this->dir . '/css/fields.css',
+			'acf-field-group' => $this->dir . '/css/field-group.css',
 			'acf-global' => $this->dir . '/css/global.css',
 			'acf-input' => $this->dir . '/css/input.css',
 			'acf-datepicker' => $this->dir . '/core/fields/date_picker/style.date_picker.css',
@@ -338,48 +349,25 @@ class acf_lite
 		</style>';
 	}
 	
-
-	/*--------------------------------------------------------------------------------------
-	*
-	*	get_field_groups
-	*
-	*	This function returns an array of post objects found in the get_posts and the 
-	*	register_field_group calls.
-	*
-	*	@author Elliot Condon
-	*	@since 3.0.6
-	* 
-	*-------------------------------------------------------------------------------------*/
 	
-	function get_field_groups()
+	/*
+	*  get_field_groups
+	*
+	*  @description: 
+	*  @since: 3.5.7
+	*  @created: 12/01/13
+	*/
+	
+	function get_field_groups( $return )
 	{
-		// return cache
-		$cache = $this->get_cache('acf_field_groups');
-		if($cache != false)
+		// return must be an array
+		if( !is_array($return) )
 		{
-			return $cache;
+			$return = array();
 		}
 		
 		
-		$acfs = array();
-		
-		
-		// hook to load in registered field groups
-		$acfs = apply_filters('acf_register_field_group', $acfs);
-		
-		
-		// update cache
-		$this->set_cache('acf_field_groups', $acfs);
-		
-		
-		// return
-		if( empty($acfs) )
-		{
-			return false;
-		}
-		
-		
-		return $acfs;
+		return $return;
 	}
 	
 	
@@ -407,7 +395,7 @@ class acf_lite
 		
 		
 		// hook to load in registered field groups
-		$acfs = $this->get_field_groups();
+		$acfs = apply_filters('acf/get_field_groups', false);
 		
 		if($acfs)
 		{
@@ -429,7 +417,7 @@ class acf_lite
 							{
 								if( isset($field[ $key ]) )
 								{
-									$value = apply_filters('acf_load_field-' . $field[ $key ], $field);
+									$field = apply_filters('acf_load_field-' . $field[ $key ], $field);
 								}
 							}
 							
@@ -489,6 +477,10 @@ class acf_lite
 		$field = apply_filters( 'acf_parse_value', $field );
 		
 		
+		// trim name
+		$field['name'] = trim( $field['name'] );
+		
+		
 		return $field;
 	}
 	
@@ -526,6 +518,12 @@ class acf_lite
 				{
 					$value = intval( $value );
 				}
+			}
+			
+			// string
+			if( is_string($value) )
+			{
+				$value = trim( $value );
 			}
 		}
 		
@@ -581,7 +579,7 @@ class acf_lite
 		// conditional logic
 		// - isset is needed for the edit field group page where fields are created without many parameters
 		if( isset($field['conditional_logic']['status']) && $field['conditional_logic']['status'] ):
-		
+			
 			$join = ' && ';
 			if( $field['conditional_logic']['allorany'] == "any" )
 			{
@@ -618,7 +616,22 @@ class acf_lite
 	
 	
 	// add change events to all fields
-<?php foreach( $field['conditional_logic']['rules'] as $rule ): ?>
+<?php 
+
+$already_added = array();
+
+foreach( $field['conditional_logic']['rules'] as $rule ): 
+
+	if( in_array( $rule['field'], $already_added) )
+	{
+		continue;
+	}
+	else
+	{
+		$already_added[] = $rule['field'];
+	}
+	
+	?>
 	$('.field-<?php echo $rule['field']; ?> *[name]').live('change', function(){
 		$(document).trigger('acf/conditional_logic/<?php echo $field['key']; ?>');
 	});
@@ -863,7 +876,7 @@ class acf_lite
 		
 		
 		// find all acf objects
-		$acfs = $this->get_field_groups();
+		$acfs = apply_filters('acf/get_field_groups', false);
 		
 		
 		// blank array to hold acfs
@@ -943,7 +956,7 @@ class acf_lite
 		return $return;
 		
 	}
-		
+	
 	
 	/*--------------------------------------------------------------------------------------
 	*
