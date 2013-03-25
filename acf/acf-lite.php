@@ -47,6 +47,8 @@ class acf_lite
 		// vars
 		$this->path = dirname(__FILE__);
 		$this->dir = str_replace(ABSPATH, get_bloginfo('url') . '/', $this->path);
+		if ( is_ssl() ) // bloginfo URL won't be SSL, which will cause insecure content blocks
+			$this->dir = str_replace( 'http://', 'https://', $this->dir );
 		$this->dir = apply_filters('acf_folder_dir', $this->dir);
 		$this->version = '3.5.8.1';
 		$this->cache = array(); // basic array cache to hold data throughout the page load
