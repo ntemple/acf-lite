@@ -1,6 +1,8 @@
 # Advanced Custom Fields Lite
 
-A lite version of the [Advanced Custom Fields](http://advancedcustomfields.com/) WordPress plugin for powerful theme development
+PLEASE NOTE: This a fork of VERSION 3 of the plugin, and may have incompatible changes. see [ACF3](https://github.com/ntemple/acf3) notes for details.
+
+A lite version of the [Advanced Custom Fields 3](https://github.com/ntemple/acf3) WordPress plugin for powerful theme development
 
 -----------------------
 
